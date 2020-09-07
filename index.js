@@ -47,7 +47,6 @@ module.exports = app => {
   router.get('/reset', (req, res) => {
     app.log('GET -> /reset.')
     prom.reset()
-
     res.send('Counter reset ' + new Date())
   })
   
