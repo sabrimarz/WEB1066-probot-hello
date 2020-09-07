@@ -20,7 +20,10 @@
     "test:watch": "jest --watch --notify --notifyMode=change --coverage"
   },
   "dependencies": {
-    "probot": "^7.0.0"
+    "probot": "^7.0.0",
+    "prom-client": "^11.2.0",
+    "express": "^4.13.3",
+    "run": "^1.4.0"
   },
   "devDependencies": {
     "jsdom": "11.11.0",
@@ -30,11 +33,14 @@
     "standard": "^10.0.3"
   },
   "engines": {
-    "node": ">= 8.3.0 <8.12.0"
+    "node": "8.3.0"
   },
   "standard": {
     "env": [
       "jest"
     ]
+  } ,
+  "jest" : {
+    "testEnvironment" : "node"
   }
 }
