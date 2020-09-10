@@ -3,116 +3,119 @@
  * @param {import('probot').Application} app - Probot's Application class.
  */
 module.exports = app => {
-  // Your code here
-  const router = app.route('/probot')
-  
-  // https://github.com/siimon/prom-client
-  // prometheus metrics
-  const client = require('prom-client')
-  const Registry = client.Registry
-  const register = new Registry()
-  const collectDefaultMetrics = client.collectDefaultMetrics
-  
-  // Probe every 5th second.
+	// Your code here
+	const router = app.route('/probot')
 
-  collectDefaultMetrics({register,
-    timeout: 5000,
-    prefix: 'default_'
-  })
-  
-  // register metrics on startup
-  const prom = new client.Summary({
-    name: 'builds_duration_ms',
-    help: 'The number of builds that have executed',
-    maxAgeSeconds: 60, // 1 minute sliding window
-    ageBuckets: 100,   // for 100 builds
-    labelNames: [
-      'action',  // action
-      'name',
-      'check_run_status',
-      'check_run_conclusion',
-      'repository_full_name',
-      'repository_name'
-    ],
-    registers: [register]
-  })
-  
-  router.get('/metrics', (req, res) => {
-    app.log('GET -> metrics called.')
-    res.set('Content-Type', register.contentType)
-    res.end(register.metrics())
-  })
-  
- // Lets test incrementing the build count
-  router.get('/reset', (req, res) => {
-    app.log('GET -> /reset.')
-    prom.reset()
-    res.send('Counter reset ' + new Date())
-  })
-  
-    // Ping router
-  router.get('/ping', (req, res) => {
-    res.send('pong')
-    app.log('pong response')
-  })
+	// https://github.com/siimon/prom-client
+	// prometheus metrics
+	const client = require('prom-client')
+	const Registry = client.Registry
+	const register = new Registry()
+	const collectDefaultMetrics = client.collectDefaultMetrics
 
-  // keep alive with Interval
-  // Lets keep the prometheus and this app alive
-  // Not this will use up all 540 hours in one month within about 14 days
-  // and will not allow for troubleshooting unless you upgrade your account
-  var http = require('http')
-  if (process.env.APP_URL) {
-    app.log('setting up timer for this app -> ' + process.env.APP_URL)
-    setInterval(() => {
-      app.log('requesting ping on -> ' + process.env.APP_URL + '/probot/ping')
-      http.get(process.env.APP_URL + '/probot/ping')
-    }, 300000) // every 5 minutes (300000)
-  }
+	// Probe every 5th second.
 
-  if (process.env.PROM_URL) {
-    app.log('setting up timer for prometheus -> ' + process.env.PROM_URL)
-    setInterval(() => {
-      app.log('requesting GET on -> ' + process.env.PROM_URL)
-      http.get(process.env.PROM_URL)
-    }, 300000) // every 5 minutes (300000)
-  }
-  
-  app.log('Yay, the app was loaded!')
+	collectDefaultMetrics({
+		register,
+		timeout: 5000,
+			prefix: 'default_'
+	})
 
-  app.on('issues.opened', async context => {
-    const issueComment = context.issue({ body: 'Thanks for opening this issue! It worked.' })
-    return context.github.issues.createComment(issueComment)
-  })
-  
-    app.on('check_run.completed', async context => {
-    app.log('check_run.completed -> called ')
-    // app.log(JSON.stringify(context))
+	// register metrics on startup
+	const prom = new client.Summary({
+		name: 'builds_duration_ms',
+		help: 'The number of builds that have executed',
+		maxAgeSeconds: 60, // 1 minute sliding window
+		ageBuckets: 100, // for 100 builds
+		labelNames: [
+			'action', // action
+			'name',
+			'check_run_status',
+			'check_run_conclusion',
+			'repository_full_name',
+			'repository_name'
+		],
+		registers: [register]
+	})
 
-    const observation = {
-      action: context.payload.action, // .action
-      name: context.payload.check_run.name,
-      check_run_status: context.payload.check_run.status,
-      check_run_conclusion: context.payload.check_run.conclusion,
-      repository_full_name: context.payload.repository.full_name, // repository.full_name
-      repository_name: context.payload.repository.name
-    }
-    const duration = new Date(context.payload.check_run.completed_at) - new             Date(context.payload.check_run.started_at)
+	router.get('/metrics', (req, res) => {
+		app.log('GET -> metrics called.')
+		res.set('Content-Type', register.contentType)
+		res.end(register.metrics())
+	})
 
-    app.log('observation.action -> ' + observation.action)
-    app.log('observation.name -> ' + observation.name)
-    app.log('observation.check_run_status -> ' + observation.check_run_status)
-    app.log('observation.check_run_conclusion -> ' + observation.check_run_conclusion)
-    app.log('observation.repository_full_name -> ' + observation.repository_full_name)
-    app.log('observation.repository_name -> ' + observation.repository_name)
-    app.log('duration -> ' + duration)
+	// Lets test incrementing the build count
+	router.get('/reset', (req, res) => {
+		app.log('GET -> /reset.')
+		prom.reset()
+		res.send('Counter reset ' + new Date())
+	})
 
-    prom.observe(observation, duration)
-    app.log('check_run.created -> done')
-  })
+	// Ping router
+	router.get('/ping', (req, res) => {
+		res.send('pong')
+		app.log('pong response')
+	})
 
-  // For more information on building apps:
-  // https://probot.github.io/docs/
+	// keep alive with Interval
+	// Lets keep the prometheus and this app alive
+	// Not this will use up all 540 hours in one month within about 14 days
+	// and will not allow for troubleshooting unless you upgrade your account
+	var http = require('http')
+	if (process.env.APP_URL) {
+		app.log('setting up timer for this app -> ' + process.env.APP_URL)
+		setInterval(() => {
+				app.log('requesting ping on -> ' + process.env.APP_URL + '/probot/ping')
+				http.get(process.env.APP_URL + '/probot/ping')
+			}, 300000) // every 5 minutes (300000)
+	}
 
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
+	if (process.env.PROM_URL) {
+		app.log('setting up timer for prometheus -> ' + process.env.PROM_URL)
+		setInterval(() => {
+				app.log('requesting GET on -> ' + process.env.PROM_URL)
+				http.get(process.env.PROM_URL)
+			}, 300000) // every 5 minutes (300000)
+	}
+
+	app.log('Yay, the app was loaded!')
+
+	app.on('issues.opened', async context => {
+		const issueComment = context.issue({
+			body: 'Thanks for opening this issue! It worked.'
+		})
+		return context.github.issues.createComment(issueComment)
+	})
+
+	app.on('check_run.completed', async context => {
+		app.log('check_run.completed -> called ')
+			// app.log(JSON.stringify(context))
+
+		const observation = {
+			action: context.payload.action, // .action
+			name: context.payload.check_run.name,
+			check_run_status: context.payload.check_run.status,
+			check_run_conclusion: context.payload.check_run.conclusion,
+			repository_full_name: context.payload.repository.full_name, // repository.full_name
+			repository_name: context.payload.repository.name
+		}
+		const duration = new Date(context.payload.check_run.completed_at) - new Date(context.payload.check_run.started_at)
+
+		app.log('observation.action -> ' + observation.action)
+		app.log('observation.name -> ' + observation.name)
+		app.log('observation.check_run_status -> ' + observation.check_run_status)
+		app.log('observation.check_run_conclusion -> ' + observation.check_run_conclusion)
+		app.log('observation.repository_full_name -> ' + observation.repository_full_name)
+		app.log('observation.repository_name -> ' + observation.repository_name)
+		app.log('duration -> ' + duration)
+
+		prom.observe(observation, duration)
+		app.log('check_run.created -> done')
+	})
+
+	// For more information on building apps:
+	// https://probot.github.io/docs/
+
+	// To get your app running against GitHub, see:
+	// https://probot.github.io/docs/development/
 }
